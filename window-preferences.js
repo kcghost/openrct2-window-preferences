@@ -82,8 +82,11 @@ function apply_prefs(w, open=true) {
 
 	if(id in win_prefs) {
 		if(open && settings.restore_pos_open) {
-			w.x = win_prefs[id].x;
-			w.y = win_prefs[id].y;
+			// only apply if it can be placed on screen
+			if(win_prefs[id].x < ui.width && win_prefs[id].y < ui.height) {
+				w.x = win_prefs[id].x;
+				w.y = win_prefs[id].y;
+			}
 		}
 		if(open && !settings.restore_size_open) { return; }
 		if(!settings.restore_size_change) { return; }
@@ -93,7 +96,9 @@ function apply_prefs(w, open=true) {
 		// todo: might be fine for graph tabs
 		if(w.classification == 28) { return; }
 		if(size in win_prefs[id]) {
-			gradual_resize(w, win_prefs[id][size].width, win_prefs[id][size].height);
+			if(win_prefs[id][size].width < ui.width && win_prefs[id][size].height < ui.height) {
+				gradual_resize(w, win_prefs[id][size].width, win_prefs[id][size].height);
+			}
 		}
 	}
 }
