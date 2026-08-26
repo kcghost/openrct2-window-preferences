@@ -87,8 +87,11 @@ function apply_prefs(w, open=true) {
 		}
 		if(open && !settings.restore_size_open) { return; }
 		if(!settings.restore_size_change) { return; }
+		// scenery picker fights resizing, dont try it
 		if(w.classification == 18) { return; }
-		// todo: force largest sizing
+		// finances window is also weird - research and main same size?
+		// todo: might be fine for graph tabs
+		if(w.classification == 28) { return; }
 		if(size in win_prefs[id]) {
 			gradual_resize(w, win_prefs[id][size].width, win_prefs[id][size].height);
 		}
