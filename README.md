@@ -8,7 +8,7 @@ windows back around to where you want them! They just stay where you want them
 even after closing them!
 
 
-![Window preferences settings window(window.png)
+![Window preferences settings window](window.png)
 
 
 ## How to use
