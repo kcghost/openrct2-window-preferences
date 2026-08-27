@@ -499,7 +499,7 @@ function main() {
 
 registerPlugin({
 	name: name,
-	version: '1.0',
+	version: '1.1',
 	authors: [author],
 	licence: 'MIT',
 	// todo: unsure if older versions may work fine
