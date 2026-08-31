@@ -290,6 +290,18 @@ function detect_changes() {
 	}
 };
 
+// convenience shortcut for closing window types that clog up the screen with multiples
+function close_multiples() {
+	for(var i = 0; i < ui.windows; i++) {
+		var w = ui.getWindow(i);
+		if(w.isSticky) { continue; }
+		if(w.classification == 225) { continue; }
+		if(w.number != 0) {
+			w.close();
+		}
+	}
+}
+
 function reset_prefs() {
 	win_prefs = {};
 }
@@ -487,6 +499,14 @@ function main() {
 		bindings: ["CTRL+SHIFT+O"],
 		callback() {
 			window_settings();
+		}
+	});
+	ui.registerShortcut({
+		id: prefix + '.close_multiples',
+		text: '[' + name + ']' + " Close multiples windows",
+		bindings: ["CTRL+BACKSPACE"],
+		callback() {
+			close_multiples();
 		}
 	});
 	
