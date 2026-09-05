@@ -1,0 +1,3 @@
+[submodule "external/OliUI"]
+	path = external/OliUI
+	url = git@github.com:oli414/OliUI.git
