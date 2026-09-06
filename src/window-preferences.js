@@ -1,14 +1,34 @@
+import Oui from "../external/OliUI/build/OliUI.js"
+
 var name = 'Window Preferences';
 var author = 'Casey Fitzpatrick';
 var prefix = [author, name].join('.').toLowerCase().replaceAll(' ','_')
 
 var win_interval = 25; // check time in ms
 var interval_handle = null;
+var settings_window = null;
 
 var last_windows = [];
 var new_windows = [];
 var win_prefs = {};
 var new_window = null;
+
+// constantly fights resizing for it's drawer feature
+const CLASS_SCENERY  = 18;
+// TODO: figure better solutions for finance window
+// finance seems to lie about it's own sizing? something odd is going on with it
+const CLASS_FINANCE  = 28;
+const CLASS_RIDE     = 12;
+const CLASS_PEEP     = 12;
+const CLASS_VIEWPORT = 112;
+const CLASS_STAFF    = 220;
+// custom uses number as differentiator between custom types rather than multiples
+const CLASS_CUSTOM   = 225;
+
+// window types that allow for multiple of the same type to be on screen at once
+const CLASSES_MULT = [ CLASS_RIDE, CLASS_PEEP, CLASS_VIEWPORT, CLASS_STAFF ];
+// annoying to size
+const CLASSES_DONTSIZE = [ CLASS_SCENERY, CLASS_FINANCE ];
 
 function check_collision(a, b) {
 	return (
@@ -49,7 +69,7 @@ function gradual_resize(w, width, height) {
 function make_id(w) {
 	id = String(w.classification);
 	// custom windows need further id by title
-	if(w.classification == 225) {
+	if(w.classification == CLASS_CUSTOM) {
 		id = id + "." + w.title.trim().toLowerCase().replaceAll(' ','_');
 	}
 	size = [String(w.minHeight),
@@ -57,7 +77,7 @@ function make_id(w) {
 		String(w.minWidth),
 		String(w.maxWidth)].join('-');
 	// ignore sizing for scenery window since it has awkward dynamic sizing
-	if(w.classification == 18) { size = "def_sz"; }
+	if(CLASSES_DONTSIZE.includes(w.classification)) { size = "def_sz"; }
 	return [id, size];
 }
 
@@ -71,7 +91,7 @@ function update_prefs(w) {
 	}
 
 	if(!settings.save_size) { return; }
-	if(w.classification == 18) { return; }
+	if(CLASSES_DONTSIZE.includes(w.classification)) { return; }
 	if(!(size in win_prefs[id])) { win_prefs[id][size] = {}; }
 	win_prefs[id][size].width = w.width;
 	win_prefs[id][size].height = w.height;
@@ -90,11 +110,7 @@ function apply_prefs(w, open=true) {
 		}
 		if(open && !settings.restore_size_open) { return; }
 		if(!settings.restore_size_change) { return; }
-		// scenery picker fights resizing, dont try it
-		if(w.classification == 18) { return; }
-		// finances window is also weird - research and main same size?
-		// todo: might be fine for graph tabs
-		if(w.classification == 28) { return; }
+		if(CLASSES_DONTSIZE.includes(w.classification)) { return; }
 		if(size in win_prefs[id]) {
 			if(win_prefs[id][size].width < ui.width && win_prefs[id][size].height < ui.height) {
 				gradual_resize(w, win_prefs[id][size].width, win_prefs[id][size].height);
@@ -128,8 +144,7 @@ function window_changed(lw, w) {
 // for both move and resize
 function window_moved(w) {
 	// only count leftmost windows if a window class supports multiples
-	// custom windows use "number" but are not multiples of the same type
-	if(w.number && w.classification != 225) {
+	if(CLASSES_MULT.includes(w.classification)) {
 		for(var i = 0; i < new_windows.length; i++) {
 			nw = new_windows[i];
 			if(w.classification == nw.classification) {
@@ -190,8 +205,14 @@ function window_new(w) {
 			}
 		}
 	}
-	if(settings.collision == 1) {
-		collide_right(w.i);
+	if(CLASSES_MULT.includes(w.classification)) {
+		if(settings.collision_mult == 1) {
+			collide_right(w.i);
+		}
+	} else {
+		if(settings.collision == 1) {
+			collide_right(w.i);
+		}
 	}
 }
 
@@ -294,9 +315,7 @@ function detect_changes() {
 function close_multiples() {
 	for(var i = 0; i < ui.windows; i++) {
 		var w = ui.getWindow(i);
-		if(w.isSticky) { continue; }
-		if(w.classification == 225) { continue; }
-		if(w.number != 0) {
+		if(CLASSES_MULT.includes(w.classification)) {
 			w.close();
 		}
 	}
@@ -316,10 +335,11 @@ var settings = {
 	"restore_pos_open": true,
 	"restore_size_open": true,
 	"restore_size_change": true,
-	// nothing, pushright/close
-	"collision": 1,
 	// normal, force no shrink, max to screen
-	"resize": 0
+	"resize": 0,
+	// nothing, pushright/close
+	"collision": 0,
+	"collision_mult": 1,
 };
 
 function update_settings() {
@@ -333,6 +353,7 @@ function update_settings() {
 		settings.restore_pos_open ||
 		settings.restore_size_change ||
 		settings.collision != 0 ||
+		settings.collision_mult != 0 ||
 		settings.resize != 0) {
 	
 		interval_handle = context.setInterval(detect_changes, win_interval);
@@ -340,151 +361,65 @@ function update_settings() {
 	context.sharedStorage.set(prefix + '.settings', settings);
 }
 
-function window_settings() {
-	ui.openWindow({
-		title: name,
-		x: (ui.width / 2) - 100,
-		y: 27,
-		width: 200,
-		height: 220,
-		widgets: [
-			{
-				type: 'groupbox',
-				x: 5,
-				y: 20,
-				width: 190,
-				height: 125,
-				text: 'Position & Sizing',
-			},
-			{
-				type: 'checkbox',
-				x: 10,
-				y: 38,
-				width: 190,
-				height: 12,
-				text: 'Save positions',
-				isChecked: settings.save_pos,
-				onChange: function(en) {
-					settings.save_pos = en;
-					update_settings();
-				}
-			},
-			{
-				type: 'checkbox',
-				x: 10,
-				y: 50,
-				width: 190,
-				height: 12,
-				text: 'Save sizes',
-				isChecked: settings.save_size,
-				onChange: function(en) {
-					settings.save_size = en;
-					update_settings();
-				}
-			},
-			{
-				type: 'checkbox',
-				x: 10,
-				y: 62,
-				width: 190,
-				height: 12,
-				text: 'Restore positions on open',
-				isChecked: settings.restore_pos_open,
-				onChange: function(en) {
-					settings.restore_pos_open = en;
-					update_settings();
-				}
-			},
-			{
-				type: 'checkbox',
-				x: 10,
-				y: 74,
-				width: 190,
-				height: 12,
-				text: 'Restore sizes on open',
-				isChecked: settings.restore_size_open,
-				onChange: function(en) {
-					settings.restore_size_open = en;
-					update_settings();
-				}
-			},
-			{
-				type: 'checkbox',
-				x: 10,
-				y: 86,
-				width: 190,
-				height: 12,
-				text: 'Restore sizes on tab switch',
-				isChecked: settings.restore_size_change,
-				onChange: function(en) {
-					settings.restore_size_change = en;
-					update_settings();
-				}
-			},
-			{
-				type: 'button',
-				x: 10,
-				y: 105,
-				width: 180,
-				height: 15,
-				text: 'Clear current preferences',
-				onClick: reset_prefs,
-			},
-			{
-				type: 'button',
-				x: 10,
-				y: 124,
-				width: 180,
-				height: 15,
-				text: 'Save current as default',
-				onClick: save_defaults,
-			},
-			{
-				type: 'groupbox',
-				x: 5,
-				y: 150,
-				width: 190,
-				height: 65,
-				text: 'Other',
-			},
-			{
-				type: 'label',
-				x: 10,
-				y: 165,
-				width: 100,
-				height: 15,
-				text: 'Collision',
-			},
-			{
-				type: 'dropdown',
-				x: 65,
-				y: 165,
-				width: 125,
-				height: 15,
-				selectedIndex: settings.collision,
-				items: ['Nothing', 'Push right & close'],
-				onChange: function(i) { settings.collision = i; update_settings(); },
-			},
-			{
-				type: 'label',
-				x: 10,
-				y: 183,
-				width: 100,
-				height: 15,
-				text: 'Resize',
-			},
-			{
-				type: 'dropdown',
-				x: 65,
-				y: 183,
-				width: 125,
-				height: 15,
-				selectedIndex: settings.resize,
-				items: ['Normal', 'Force no shrink', 'Force max to screen'],
-				onChange: function(i) { settings.resize = i; update_settings(); },
-			},
-		]
+// tie setting to OliUI checkbox widget
+function add_setting_checkbox(parent, label, key) {
+	checkbox = new Oui.Widgets.Checkbox(label, function(t) {
+		settings[key] = t;
+		update_settings();
 	});
+	parent.addChild(checkbox);
+	checkbox.setChecked(settings[key]);
+}
+
+// Make a labeled dropdown and tie to setting
+function add_setting_dropdown(parent, label, labels, key) {
+	box = new Oui.HorizontalBox();
+	label = new Oui.Widgets.Label(label);
+	dropdown = new Oui.Widgets.Dropdown(labels, function(t) {
+		settings[key] = t;
+		update_settings();
+	});
+	// no legitimate setter??
+	dropdown._selectedIndex = settings[key];
+	label.setRelativeWidth(50);
+	dropdown.setRelativeWidth(50);
+	box.addChild(label);
+	box.addChild(dropdown);
+	parent.addChild(box);
+}
+
+// build window using OliUI, easier to re-arrange and manage than manually creating the window desc
+function build_window() {
+	// classification (as string in WindowDesc), title
+	// I have no idea where classification as string ends up for custom windows
+	// normally "classification" is a r/o number in the Window interface
+	window = new Oui.Window(name, name);
+	window.setWidth(300); 
+
+	posbox = new Oui.GroupBox("Position & Sizing");
+	window.addChild(posbox);
+
+	add_setting_checkbox(posbox, "Save Positions", "save_pos");
+	add_setting_checkbox(posbox, "Save Sizes", "save_size");
+	add_setting_checkbox(posbox, "Restore positions on open", "restore_pos_open");
+	add_setting_checkbox(posbox, "Restore sizes on open", "restore_size_open");
+	add_setting_checkbox(posbox, "Restore sizes on tab switch", "restore_size_change");
+	add_setting_dropdown(posbox, "Experimental sizing", ['Normal', 'Force no shrink', 'Force max to screen'], "resize");
+
+	colbox = new Oui.GroupBox("Collision Handling");
+	window.addChild(colbox);
+
+	add_setting_dropdown(colbox, "Single-instance windows", ['Do nothing', 'Push right, close edge'], "collision");
+	add_setting_dropdown(colbox, "Multi-instance windows", ['Do nothing', 'Push right, close edge'], "collision_mult");
+
+	window.addChild(new Oui.Widgets.Button("Clear current positions/sizes", reset_prefs));
+	window.addChild(new Oui.Widgets.Button("Save current positions/sizes as default", save_defaults));
+
+	return window;
+}
+
+function open_settings_window() {
+	settings_window.open();
 }
 
 function main() {
@@ -492,13 +427,13 @@ function main() {
 		return;
 	}
 
-	ui.registerMenuItem(name, window_settings);
+	ui.registerMenuItem(name, open_settings_window);
 	ui.registerShortcut({
 		id: prefix + '.window_settings',
 		text: '[' + name + ']' + " Open",
 		bindings: ["CTRL+SHIFT+O"],
 		callback() {
-			window_settings();
+			open_settings_window();
 		}
 	});
 	ui.registerShortcut({
@@ -515,11 +450,13 @@ function main() {
 	var p = context.sharedStorage.get(prefix + '.prefs');
 	if(p) { win_prefs = p; }
 	update_settings();
+
+	settings_window = build_window();
 };
 
 registerPlugin({
 	name: name,
-	version: '1.1',
+	version: DEF_VERSION,
 	authors: [author],
 	licence: 'MIT',
 	// todo: unsure if older versions may work fine
