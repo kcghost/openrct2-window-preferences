@@ -19,14 +19,15 @@ const CLASS_SCENERY  = 18;
 // finance seems to lie about it's own sizing? something odd is going on with it
 const CLASS_FINANCE  = 28;
 const CLASS_RIDE     = 12;
-const CLASS_PEEP     = 12;
+const CLASS_PEEP     = 23;
+const CLASS_BANNER   = 40;
 const CLASS_VIEWPORT = 112;
-const CLASS_STAFF    = 220;
+const CLASS_STAFF    = 220; // actually CLASS_PEEP is used, could maybe tell them apart?
 // custom uses number as differentiator between custom types rather than multiples
 const CLASS_CUSTOM   = 225;
 
 // window types that allow for multiple of the same type to be on screen at once
-const CLASSES_MULT = [ CLASS_RIDE, CLASS_PEEP, CLASS_VIEWPORT, CLASS_STAFF ];
+const CLASSES_MULT = [ CLASS_RIDE, CLASS_PEEP, CLASS_VIEWPORT, CLASS_STAFF, CLASS_BANNER ];
 // annoying to size
 const CLASSES_DONTSIZE = [ CLASS_SCENERY, CLASS_FINANCE ];
 
