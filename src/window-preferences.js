@@ -187,6 +187,7 @@ function collide_right(i) {
 }
 
 function window_new(w) {
+	//console.log("new: " + w.classification);
 	if(settings.resize == 2) {
 		w.maxWidth = ui.width;
 		w.maxHeight = ui.height;
@@ -415,6 +416,10 @@ function build_window() {
 
 	window.addChild(new Oui.Widgets.Button("Clear current positions/sizes", reset_prefs));
 	window.addChild(new Oui.Widgets.Button("Save current positions/sizes as default", save_defaults));
+
+	label = new Oui.Widgets.Label("v" + DEF_VERSION);
+	window.addChild(label);
+	label.setIsDisabled(true);
 
 	return window;
 }
